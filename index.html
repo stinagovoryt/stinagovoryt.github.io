@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audiobook Player</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Add these links for PWA support -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <meta name="theme-color" content="#3498db">
+    <!-- For iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="icons/favicon.ico">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        .player-container {
+            background-color: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .book-cover {
+            width: 200px;
+            height: 300px;
+            background-color: #3498db;
+            background-image: url('wall-speaks.jpg');
+            background-size: cover;
+            background-position: center;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            padding: 15px;
+            position: relative;
+        }
+        .book-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+        }
+        .book-cover span {
+            position: relative;
+            z-index: 1;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .chapter-selector {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+        select {
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            background-color: #fff;
+            flex-grow: 1;
+            font-size: 14px;
+            min-width: 0;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .playback-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .main-play-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #3498db;
+            font-size: 24px;
+        }
+        .control-btn {
+            min-width: 40px;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .progress-container {
+            margin: 20px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #ecf0f1;
+            border-radius: 20px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .progress {
+            height: 100%;
+            background-color: #3498db;
+            width: 0;
+            border-radius: 20px;
+        }
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-top: 8px;
+            color: #7f8c8d;
+        }
+        .speed-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 15px;
+            gap: 8px;
+        }
+        .speed-btn {
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 15px;
+        }
+        .active-speed {
+            background-color: #2980b9;
+            transform: scale(1.05);
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+        }
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .footer a:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+        @media (max-width: 480px) {
+            .player-container {
+                padding: 15px;
+            }
+            
+            .chapter-selector {
+                gap: 5px;  /* Tighter spacing on very small screens */
+            }
+            
+            select {
+                padding: 8px;
+                font-size: 13px;
+            }
+            
+            .control-btn {
+                min-width: 36px;
+                width: 36px;
+                height: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Стіна Промовляє Player</h1>
+    
+    <div class="player-container">
+        <div class="book-cover" id="bookCover">
+            <span>Audiobook</span>
+        </div>
+        
+        <div class="controls">
+            <div class="chapter-selector">
+                <button id="prevChapter" class="control-btn"><i class="fas fa-step-backward"></i></button>
+                <select id="chapterSelect">
+                    <option value="">Loading chapters...</option>
+                </select>
+                <button id="nextChapter" class="control-btn"><i class="fas fa-step-forward"></i></button>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress" id="progressBar"></div>
+                </div>
+                <div class="time-display">
+                    <span id="currentTime">0:00</span>
+                    <span id="duration">0:00</span>
+                </div>
+            </div>
+            
+            <div class="playback-controls">
+                <button id="rewind30" class="control-btn"><i class="fas fa-backward"></i> 30</button>
+                <button id="playPause" class="main-play-btn"><i class="fas fa-play"></i></button>
+                <button id="forward30" class="control-btn">30 <i class="fas fa-forward"></i></button>
+            </div>
+            
+            <div class="speed-container">
+                <span>Speed:</span>
+                <button class="speed-btn" data-speed="0.75">0.75x</button>
+                <button class="speed-btn active-speed" data-speed="1">1x</button>
+                <button class="speed-btn" data-speed="1.25">1.25x</button>
+                <button class="speed-btn" data-speed="1.5">1.5x</button>
+                <button class="speed-btn" data-speed="2">2x</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audioPlayer"></audio>
+    
+    <div class="footer">
+        <a href="https://stina-govoryt.github.io" target="_blank">Стіна Промовляє (текстова версія)</a>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const audioPlayer = document.getElementById('audioPlayer');
+            const playPauseBtn = document.getElementById('playPause');
+            const prevChapterBtn = document.getElementById('prevChapter');
+            const nextChapterBtn = document.getElementById('nextChapter');
+            const chapterSelect = document.getElementById('chapterSelect');
+            const progressBar = document.getElementById('progressBar');
+            const currentTimeElement = document.getElementById('currentTime');
+            const durationElement = document.getElementById('duration');
+            const rewind30 = document.getElementById('rewind30');
+            const forward30 = document.getElementById('forward30');
+            const speedButtons = document.querySelectorAll('.speed-btn');
+            const bookCover = document.getElementById('bookCover');
+            
+            // Sample chapters (in a real app, this would be dynamically loaded)
+            const chapters = [
+                { number: 1, file: "chapters/01_стіна_промовляє.mp3" },
+                { number: 2, file: "chapters/02_вступ.mp3" },
+                { number: 3, file: "chapters/03_безстінний_американець.mp3" },
+                { number: 4, file: "chapters/04_сад_із_стіною.mp3" },
+                { number: 5, file: "chapters/05_жінки_збивають_зі_шляху.mp3" },
+                { number: 6, file: "chapters/06_стіна_сама_по_собі.mp3" },
+                { number: 7, file: "chapters/07_як_побудувати_стіну.mp3" },
+                { number: 8, file: "chapters/08_стіна_захищає.mp3" },
+                { number: 9, file: "chapters/09_стіна_це_її_світ.mp3" },
+                { number: 10, file: "chapters/10_стіна_промовляє.mp3" },
+                { number: 11, file: "chapters/11_таємниця_за_стіною.mp3" },
+                { number: 12, file: "chapters/12_стіна_залишається_міцною.mp3" },
+                { number: 13, file: "chapters/13_стіна_стоїть_високо.mp3" },
+                { number: 14, file: "chapters/14_стіна_вимагає_поваги.mp3" },
+                { number: 15, file: "chapters/15_стіна_це_любов.mp3" },
+                { number: 16, file: "chapters/16_стінатрахає.mp3" },
+                { number: 17, file: "chapters/17_стіна_змушує_її_служити.mp3" },
+                { number: 18, file: "chapters/18_стіна_не_реагує.mp3" },
+                { number: 19, file: "chapters/19_стіна_вірить.mp3" },
+                { number: 20, file: "chapters/20_стіна_вимагає_віри.mp3" },
+                { number: 21, file: "chapters/21_стіна_віддалена.mp3" },
+                { number: 22, file: "chapters/22_змія_в_огородженому_саду.mp3" },
+                { number: 23, file: "chapters/23_стіна_побудована_на_раціональності.mp3" },
+                { number: 24, file: "chapters/24_стіна_читає_і_пише.mp3" },
+                { number: 25, file: "chapters/25_стіна_контролює_гнів.mp3" },
+                { number: 26, file: "chapters/26_стіна_не_рухається.mp3" },
+                { number: 27, file: "chapters/27_стіна_повинна_лякати.mp3" },
+                { number: 28, file: "chapters/28_стіна_не_потребує_схвалення.mp3" },
+                { number: 29, file: "chapters/29_стіна_відвертається.mp3" },
+                { number: 30, file: "chapters/30_стіна_шукає_власне_задоволення.mp3" },
+                { number: 31, file: "chapters/31_стіна_не_чекає.mp3" },
+                { number: 32, file: "chapters/32_стіна_забезпечує.mp3" },
+                { number: 33, file: "chapters/33_стіна_це_мир.mp3" },
+                { number: 34, file: "chapters/34_стіна_знає.mp3" },
+                { number: 35, file: "chapters/35_поза_стіною_три_архетипи_чоловіків_без_каркасу.mp3" },
+                { number: 36, file: "chapters/36_стіна_серйозна.mp3" },
+                { number: 37, file: "chapters/37_під_тінню_стіни.mp3" },
+                { number: 38, file: "chapters/38_стіна_веде.mp3" },
+                { number: 39, file: "chapters/39_планувати.mp3" },
+                { number: 40, file: "chapters/40_розробляти_стратегії.mp3" },
+                { number: 41, file: "chapters/41_давати_напрямок.mp3" },
+                { number: 42, file: "chapters/42_провалюється_у_коханні.mp3" },
+                { number: 43, file: "chapters/43_страх_втрати.mp3" },
+                { number: 44, file: "chapters/44_стіна_не_вибачається_і_не_пояснює.mp3" },
+                { number: 45, file: "chapters/45_стіна_поглинає_провину.mp3" },
+                { number: 46, file: "chapters/46_стіна_досліджує.mp3" },
+                { number: 47, file: "chapters/47_стіна_відбиває_сором.mp3" },
+                { number: 48, file: "chapters/48_стіна_змагається.mp3" },
+                { number: 49, file: "chapters/49_стіна_цивілізована.mp3" },
+                { number: 50, file: "chapters/50_стіни_навколо_нас_руйнуються.mp3" },
+                { number: 51, file: "chapters/51_стіна_міцна.mp3" },
+                { number: 52, file: "chapters/52_стіна_та_політика.mp3" },
+                { number: 53, file: "chapters/53_стіна_це_революція.mp3" },
+                { number: 54, file: "chapters/54_стіна_руйнує_відчай.mp3" },
+                { number: 55, file: "chapters/55_терапія_підпорядкування.mp3" },
+                { number: 56, file: "chapters/56_пролог.mp3" }
+            ];
+            
+            let currentChapterIndex = 0;
+            let isPlaying = false;
+            
+            // Extract chapter title from filename
+            function getChapterTitle(filename) {
+                // Remove path and file extension
+                const nameOnly = filename.split('/').pop().replace('.mp3', '');
+                // Remove number prefix and underscores, capitalize words
+                return nameOnly
+                    .replace(/^\d+_/, '')
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+            }
+            
+            // Initialize chapter selector
+            function loadChapters() {
+                chapterSelect.innerHTML = '';
+                chapters.forEach((chapter, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    const title = getChapterTitle(chapter.file);
+                    option.textContent = `${chapter.number}. ${title}`;
+                    chapterSelect.appendChild(option);
+                });
+            }
+            
+            // Load audio for a chapter
+            function loadChapter(index) {
+                if (index >= 0 && index < chapters.length) {
+                    currentChapterIndex = index;
+                    chapterSelect.value = index;
+                    
+                    const chapter = chapters[index];
+                    audioPlayer.src = chapter.file;
+                    const title = getChapterTitle(chapter.file);
+                    bookCover.innerHTML = `<span>${title}</span>`;
+                    
+                    // Update UI
+                    updateButtonStates();
+                    
+                    // Save current chapter to local storage
+                    localStorage.setItem('currentChapter', index);
+                    
+                    // Auto-play when changing chapters
+                    audioPlayer.load();
+                    if (isPlaying) {
+                        playAudio();
+                    }
+                }
+            }
+            
+            // Update button states based on current chapter
+            function updateButtonStates() {
+                prevChapterBtn.disabled = currentChapterIndex === 0;
+                nextChapterBtn.disabled = currentChapterIndex === chapters.length - 1;
+            }
+            
+            // Play/pause toggle
+            function togglePlayPause() {
+                if (audioPlayer.paused) {
+                    playAudio();
+                } else {
+                    pauseAudio();
+                }
+            }
+            
+            function playAudio() {
+                audioPlayer.play()
+                    .catch(e => console.error("Error playing audio:", e));
+                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                isPlaying = true;
+            }
+            
+            function pauseAudio() {
+                audioPlayer.pause();
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                isPlaying = false;
+            }
+            
+            // Format time for display (mm:ss)
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Event listeners
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            
+            prevChapterBtn.addEventListener('click', () => {
+                loadChapter(currentChapterIndex - 1);
+            });
+            
+            nextChapterBtn.addEventListener('click', () => {
+                loadChapter(currentChapterIndex + 1);
+            });
+            
+            chapterSelect.addEventListener('change', (e) => {
+                loadChapter(parseInt(e.target.value));
+            });
+            
+            rewind30.addEventListener('click', () => {
+                audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 30);
+            });
+            
+            forward30.addEventListener('click', () => {
+                audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 30);
+            });
+            
+            // Set playback speed
+            speedButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const speed = parseFloat(button.dataset.speed);
+                    audioPlayer.playbackRate = speed;
+                    
+                    // Update active button
+                    speedButtons.forEach(btn => {
+                        btn.classList.remove('active-speed');
+                    });
+                    button.classList.add('active-speed');
+                });
+            });
+            
+            // Update progress bar and time display
+            audioPlayer.addEventListener('timeupdate', () => {
+                const currentTime = audioPlayer.currentTime;
+                const duration = audioPlayer.duration || 0;
+                
+                // Update progress bar
+                const progressPercent = (currentTime / duration) * 100;
+                progressBar.style.width = `${progressPercent}%`;
+                
+                // Update time display
+                currentTimeElement.textContent = formatTime(currentTime);
+                durationElement.textContent = formatTime(duration);
+            });
+            
+            // Progress bar click for seeking
+            document.querySelector('.progress-bar').addEventListener('click', (e) => {
+                const progressBar = e.currentTarget;
+                const clickPosition = e.offsetX / progressBar.offsetWidth;
+                audioPlayer.currentTime = clickPosition * audioPlayer.duration;
+            });
+            
+            // Auto-play next chapter
+            audioPlayer.addEventListener('ended', () => {
+                if (currentChapterIndex < chapters.length - 1) {
+                    loadChapter(currentChapterIndex + 1);
+                    playAudio();
+                } else {
+                    pauseAudio();
+                }
+            });
+            
+            // Initialize
+            loadChapters();
+            
+            // Check if there's a saved chapter in local storage
+            const savedChapter = localStorage.getItem('currentChapter');
+            if (savedChapter !== null) {
+                loadChapter(parseInt(savedChapter));
+            } else {
+                loadChapter(0);
+            }
+            
+            updateButtonStates();
+            
+            // Register service worker for PWA
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(registration => {
+                            console.log('Service Worker registered:', registration);
+                        })
+                        .catch(error => {
+                            console.log('Service Worker registration failed:', error);
+                        });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
